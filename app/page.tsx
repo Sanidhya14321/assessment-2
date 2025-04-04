@@ -1,103 +1,101 @@
-import Image from "next/image";
+"use client"
+
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { ArrowRight, Brain, Code, Database, Server } from "lucide-react"
+import { motion } from "framer-motion"
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="container mx-auto px-4 py-12">
+      <section className="py-20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-4xl mx-auto"
+        >
+          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-[#F7374F] to-[#88304E] text-transparent bg-clip-text">
+            Enhance Your Computer Science Skills
+          </h1>
+          <p className="text-xl mb-8 text-gray-300">
+            Take assessments in various computer science domains to test your knowledge and track your progress.
+          </p>
+          <Link href="/assessments">
+            <Button className="bg-[#F7374F] hover:bg-[#88304E] text-white px-8 py-6 text-lg rounded-full transition-all">
+              Start Exploring <ArrowRight className="ml-2" />
+            </Button>
+          </Link>
+        </motion.div>
+      </section>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <section className="py-16">
+        <h2 className="text-3xl font-bold mb-12 text-center">Featured Categories</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[
+            {
+              title: "AI & Machine Learning",
+              icon: <Brain className="h-10 w-10" />,
+              description: "Test your knowledge in artificial intelligence and machine learning concepts.",
+            },
+            {
+              title: "Web Development",
+              icon: <Code className="h-10 w-10" />,
+              description: "Assess your skills in frontend and backend web development technologies.",
+            },
+            {
+              title: "Database Systems",
+              icon: <Database className="h-10 w-10" />,
+              description: "Evaluate your understanding of database design and management.",
+            },
+            {
+              title: "Backend & DevOps",
+              icon: <Server className="h-10 w-10" />,
+              description: "Test your knowledge in server management and deployment processes.",
+            },
+          ].map((category, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="bg-[#522546] p-6 rounded-xl hover:shadow-lg hover:shadow-[#F7374F]/20 transition-all"
+            >
+              <div className="bg-[#88304E] p-4 rounded-full inline-block mb-4">{category.icon}</div>
+              <h3 className="text-xl font-bold mb-2">{category.title}</h3>
+              <p className="text-gray-300 mb-4">{category.description}</p>
+              <Link href={`/assessments#${category.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                <Button
+                  variant="outline"
+                  className="border-[#F7374F] text-[#F7374F] hover:bg-[#F7374F] hover:text-white"
+                >
+                  Explore
+                </Button>
+              </Link>
+            </motion.div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      <section className="py-16 bg-[#522546] rounded-xl p-8 mt-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-6">Track Your Progress</h2>
+          <p className="text-xl mb-8 text-gray-300">
+            Create an account to save your assessment results and track your improvement over time.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/signup">
+              <Button className="bg-[#F7374F] hover:bg-[#88304E] text-white px-6 py-2">Sign Up</Button>
+            </Link>
+            <Link href="/auth/signin">
+              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-[#522546]">
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
-  );
+  )
 }
+
