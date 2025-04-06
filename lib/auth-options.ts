@@ -1,8 +1,8 @@
-import NextAuth from "next-auth"
+import type { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { validateUser } from "@/lib/db"
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -59,7 +59,5 @@ const handler = NextAuth({
     signOut: "/",
     error: "/auth/error",
   },
-})
-
-export { handler as GET, handler as POST }
+}
 

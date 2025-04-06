@@ -1,14 +1,12 @@
-import { NextResponse } from "next/server"
-import clientPromise from "@/lib/mongodb"
+import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
+import { createAssessment, getAllAssessments } from "@/lib/db"
+import { authOptions } from "@/lib/auth-options"
 
-export async function GET() {
+
+export async function GET(request: NextRequest) {
   try {
-    const client = await clientPromise
-    const db = client.db()
-
-    const assessments = await db.collection("assessments").find({}).toArray()
-
+    const assessments = await getAllAssessments()
     return NextResponse.json(assessments)
   } catch (error) {
     console.error("Error fetching assessments:", error)
@@ -16,12 +14,12 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
 
     // Check if user is authenticated and is an admin
-    if (!session || session.user?.email !== "admin@example.com") {
+    if (!session || session.user?.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -32,28 +30,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const client = await clientPromise
-    const db = client.db()
-
-    // Add creation date and expiration date (20 days from now)
-    const now = new Date()
-    const expiresAt = new Date()
-    expiresAt.setDate(now.getDate() + 20)
-
-    const assessment = {
-      ...data,
-      createdAt: now,
-      expiresAt: expiresAt,
-      upvotes: 0,
-      downvotes: 0,
-    }
-
-    const result = await db.collection("assessments").insertOne(assessment)
-
-    return NextResponse.json({
-      id: result.insertedId,
-      ...assessment,
+    const assessment = await createAssessment({
+      title: data.title,
+      category: data.category,
+      description: data.description,
+      questions: data.questions,
+      timeLimit: data.timeLimit || 30,
     })
+
+    return NextResponse.json(assessment)
   } catch (error) {
     console.error("Error creating assessment:", error)
     return NextResponse.json({ error: "Failed to create assessment" }, { status: 500 })

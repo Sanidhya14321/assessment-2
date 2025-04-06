@@ -1,59 +1,16 @@
-import { Suspense } from "react"
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Brain, Code, Database, Server, Trophy, Calendar, Clock } from "lucide-react"
-
-// This would normally be fetched from the database
-const mockUserData = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  joinedDate: "2023-10-15",
-  completedAssessments: 12,
-  averageScore: 78,
-  recentResults: [
-    {
-      id: 1,
-      title: "Machine Learning Fundamentals",
-      category: "AI & Machine Learning",
-      score: 85,
-      date: "2023-11-10",
-      timeSpent: 28,
-    },
-    {
-      id: 2,
-      title: "Frontend Fundamentals",
-      category: "Web Development",
-      score: 92,
-      date: "2023-11-05",
-      timeSpent: 32,
-    },
-    {
-      id: 3,
-      title: "SQL Fundamentals",
-      category: "Database Systems",
-      score: 76,
-      date: "2023-10-28",
-      timeSpent: 25,
-    },
-    {
-      id: 4,
-      title: "Docker & Containerization",
-      category: "Backend & DevOps",
-      score: 68,
-      date: "2023-10-20",
-      timeSpent: 29,
-    },
-  ],
-  categoryPerformance: [
-    { category: "AI & Machine Learning", score: 82, assessments: 3 },
-    { category: "Web Development", score: 88, assessments: 4 },
-    { category: "Database Systems", score: 75, assessments: 3 },
-    { category: "Backend & DevOps", score: 70, assessments: 2 },
-  ],
-}
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import type { Result } from "@/lib/models"
 
 function ProfileSkeleton() {
   return (
@@ -78,7 +35,7 @@ function getCategoryIcon(category: string) {
     case "Backend & DevOps":
       return <Server className="h-5 w-5" />
     default:
-      return null
+      return <Code className="h-5 w-5" />
   }
 }
 
@@ -97,95 +54,200 @@ function getProgressColor(score: number) {
 }
 
 export default function ProfilePage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const { toast } = useToast()
+  const [results, setResults] = useState<Result[]>([])
+  const [loading, setLoading] = useState(true)
+  const [userData, setUserData] = useState<{
+    name: string
+    email: string
+    joinedDate: string
+    completedAssessments: number
+    averageScore: number
+    categoryPerformance: { category: string; score: number; assessments: number }[]
+  }>({
+    name: "",
+    email: "",
+    joinedDate: "",
+    completedAssessments: 0,
+    averageScore: 0,
+    categoryPerformance: [],
+  })
+
+  useEffect(() => {
+    // Redirect if not authenticated
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+    }
+
+    if (status === "authenticated") {
+      fetchUserResults()
+    }
+  }, [status, router])
+
+  const fetchUserResults = async () => {
+    try {
+      const response = await fetch("/api/results")
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch results")
+      }
+
+      const data = await response.json()
+      setResults(data)
+
+      // Calculate user stats
+      if (data.length > 0) {
+        // Calculate average score
+        const totalScore = data.reduce((sum: number, result: Result) => sum + result.score, 0)
+        const averageScore = Math.round(totalScore / data.length)
+
+        // Group by category
+        const categories: Record<string, { scores: number[]; count: number }> = {}
+
+        data.forEach((result: Result) => {
+          if (!categories[result.category]) {
+            categories[result.category] = { scores: [], count: 0 }
+          }
+
+          categories[result.category].scores.push(result.score)
+          categories[result.category].count++
+        })
+
+        // Calculate category performance
+        const categoryPerformance = Object.entries(categories).map(([category, data]) => {
+          const avgScore = Math.round(data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length)
+
+          return {
+            category,
+            score: avgScore,
+            assessments: data.count,
+          }
+        })
+
+        setUserData({
+          name: session?.user?.name || "",
+          email: session?.user?.email || "",
+          joinedDate: new Date().toISOString(), // This would come from the user record in a real app
+          completedAssessments: data.length,
+          averageScore,
+          categoryPerformance,
+        })
+      }
+
+      setLoading(false)
+    } catch (error) {
+      console.error("Error fetching results:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load your profile data. Please try again later.",
+        variant: "destructive",
+      })
+      setLoading(false)
+    }
+  }
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+        <ProfileSkeleton />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold mb-8">My Profile</h1>
 
-      <Suspense fallback={<ProfileSkeleton />}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-[#2C2C2C] border-[#522546]">
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-400">Name</p>
-                  <p className="text-lg font-medium">{mockUserData.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Email</p>
-                  <p className="text-lg font-medium">{mockUserData.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-400">Joined</p>
-                  <p className="text-lg font-medium">{new Date(mockUserData.joinedDate).toLocaleDateString()}</p>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="bg-[#2C2C2C] border-[#522546]">
+          <CardHeader>
+            <CardTitle>Profile Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-400">Name</p>
+                <p className="text-lg font-medium">{userData.name}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-gray-400">Email</p>
+                <p className="text-lg font-medium">{userData.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Joined</p>
+                <p className="text-lg font-medium">{new Date(userData.joinedDate).toLocaleDateString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-[#2C2C2C] border-[#522546] md:col-span-2">
-            <CardHeader>
-              <CardTitle>Performance Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
-                  <div className="text-4xl font-bold mb-2">{mockUserData.completedAssessments}</div>
-                  <p className="text-gray-300">Assessments Completed</p>
-                </div>
-                <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
-                  <div className="text-4xl font-bold mb-2">{mockUserData.averageScore}%</div>
-                  <p className="text-gray-300">Average Score</p>
-                </div>
-                <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
-                  <div className="text-4xl font-bold mb-2">
-                    {
-                      mockUserData.categoryPerformance
+        <Card className="bg-[#2C2C2C] border-[#522546] md:col-span-2">
+          <CardHeader>
+            <CardTitle>Performance Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
+                <div className="text-4xl font-bold mb-2">{userData.completedAssessments}</div>
+                <p className="text-gray-300">Assessments Completed</p>
+              </div>
+              <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
+                <div className="text-4xl font-bold mb-2">{userData.averageScore}%</div>
+                <p className="text-gray-300">Average Score</p>
+              </div>
+              <div className="flex flex-col items-center justify-center p-4 bg-[#522546] rounded-lg">
+                <div className="text-4xl font-bold mb-2">
+                  {userData.categoryPerformance.length > 0
+                    ? userData.categoryPerformance
                         .reduce((max, cat) => (cat.score > max.score ? cat : max))
                         .category.split(" ")[0]
-                    }
-                  </div>
-                  <p className="text-gray-300">Strongest Category</p>
+                    : "N/A"}
                 </div>
+                <p className="text-gray-300">Strongest Category</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <Tabs defaultValue="results" className="space-y-6">
-          <TabsList className="bg-[#522546]">
-            <TabsTrigger value="results">Recent Results</TabsTrigger>
-            <TabsTrigger value="categories">Category Performance</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="results" className="space-y-6">
+        <TabsList className="bg-[#522546]">
+          <TabsTrigger value="results">Recent Results</TabsTrigger>
+          <TabsTrigger value="categories">Category Performance</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="results" className="space-y-6">
-            <Card className="bg-[#2C2C2C] border-[#522546]">
-              <CardHeader>
-                <CardTitle>Recent Assessment Results</CardTitle>
-                <CardDescription>Your most recent assessment completions</CardDescription>
-              </CardHeader>
-              <CardContent>
+        <TabsContent value="results" className="space-y-6">
+          <Card className="bg-[#2C2C2C] border-[#522546]">
+            <CardHeader>
+              <CardTitle>Recent Assessment Results</CardTitle>
+              <CardDescription>Your most recent assessment completions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {results.length > 0 ? (
                 <div className="space-y-6">
-                  {mockUserData.recentResults.map((result) => (
-                    <div key={result.id} className="p-4 bg-[#522546] rounded-lg">
+                  {results.map((result) => (
+                    <div key={result._id} className="p-4 bg-[#522546] rounded-lg">
                       <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                         <div className="flex items-center gap-3 mb-2 md:mb-0">
                           <div className="bg-[#88304E] p-2 rounded-full">{getCategoryIcon(result.category)}</div>
                           <div>
-                            <h3 className="font-semibold">{result.title}</h3>
+                            <h3 className="font-semibold">{result.assessmentTitle}</h3>
                             <p className="text-sm text-gray-400">{result.category}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-400">{new Date(result.date).toLocaleDateString()}</span>
+                            <span className="text-sm text-gray-400">
+                              {new Date(result.completedAt).toLocaleDateString()}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-400">{result.timeSpent} min</span>
+                            <span className="text-sm text-gray-400">{Math.round(result.timeSpent / 60)} min</span>
                           </div>
                         </div>
                       </div>
@@ -211,19 +273,25 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">You haven't completed any assessments yet.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <TabsContent value="categories" className="space-y-6">
-            <Card className="bg-[#2C2C2C] border-[#522546]">
-              <CardHeader>
-                <CardTitle>Category Performance</CardTitle>
-                <CardDescription>Your performance across different categories</CardDescription>
-              </CardHeader>
-              <CardContent>
+        <TabsContent value="categories" className="space-y-6">
+          <Card className="bg-[#2C2C2C] border-[#522546]">
+            <CardHeader>
+              <CardTitle>Category Performance</CardTitle>
+              <CardDescription>Your performance across different categories</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {userData.categoryPerformance.length > 0 ? (
                 <div className="space-y-6">
-                  {mockUserData.categoryPerformance.map((category, index) => (
+                  {userData.categoryPerformance.map((category, index) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -241,11 +309,15 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </Suspense>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">Complete assessments to see your category performance.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

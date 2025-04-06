@@ -1,143 +1,70 @@
-import { notFound } from "next/navigation"
+"use client"
+
+import { useEffect, useState } from "react"
+import { notFound, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Brain, Code, Database, Server, Clock, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import AssessmentQuestions from "@/components/assessment-questions"
+import type { Assessment } from "@/lib/models"
+import { useToast } from "@/hooks/use-toast"
 
-// This would normally be fetched from the database
-const categories = [
-  {
-    id: "aiml",
-    name: "AI & Machine Learning",
-    icon: <Brain className="h-6 w-6" />,
-    assessments: [
-      {
-        id: "aiml-1",
-        title: "Machine Learning Fundamentals",
-        description: "Test your understanding of basic machine learning concepts and algorithms.",
-        questions: 25,
-        timeLimit: 30,
-        category: "AI & Machine Learning",
-      },
-      {
-        id: "aiml-2",
-        title: "Neural Networks & Deep Learning",
-        description: "Evaluate your knowledge of neural network architectures and deep learning principles.",
-        questions: 30,
-        timeLimit: 45,
-        category: "AI & Machine Learning",
-      },
-      {
-        id: "aiml-3",
-        title: "Natural Language Processing",
-        description: "Test your understanding of NLP techniques and applications.",
-        questions: 20,
-        timeLimit: 25,
-        category: "AI & Machine Learning",
-      },
-    ],
-  },
-  {
-    id: "webdev",
-    name: "Web Development",
-    icon: <Code className="h-6 w-6" />,
-    assessments: [
-      {
-        id: "webdev-1",
-        title: "Frontend Fundamentals",
-        description: "Test your knowledge of HTML, CSS, and JavaScript fundamentals.",
-        questions: 30,
-        timeLimit: 35,
-        category: "Web Development",
-      },
-      {
-        id: "webdev-2",
-        title: "React & Modern JavaScript",
-        description: "Evaluate your understanding of React and modern JavaScript concepts.",
-        questions: 25,
-        timeLimit: 30,
-        category: "Web Development",
-      },
-      {
-        id: "webdev-3",
-        title: "Backend Development",
-        description: "Test your knowledge of server-side programming and API development.",
-        questions: 28,
-        timeLimit: 40,
-        category: "Web Development",
-      },
-    ],
-  },
-  {
-    id: "database",
-    name: "Database Systems",
-    icon: <Database className="h-6 w-6" />,
-    assessments: [
-      {
-        id: "db-1",
-        title: "SQL Fundamentals",
-        description: "Test your knowledge of SQL queries and database operations.",
-        questions: 25,
-        timeLimit: 30,
-        category: "Database Systems",
-      },
-      {
-        id: "db-2",
-        title: "NoSQL Databases",
-        description: "Evaluate your understanding of NoSQL database concepts and technologies.",
-        questions: 20,
-        timeLimit: 25,
-        category: "Database Systems",
-      },
-      {
-        id: "db-3",
-        title: "Database Design & Normalization",
-        description: "Test your knowledge of database design principles and normalization.",
-        questions: 22,
-        timeLimit: 35,
-        category: "Database Systems",
-      },
-    ],
-  },
-  {
-    id: "devops",
-    name: "Backend & DevOps",
-    icon: <Server className="h-6 w-6" />,
-    assessments: [
-      {
-        id: "devops-1",
-        title: "Docker & Containerization",
-        description: "Test your understanding of Docker and container orchestration.",
-        questions: 25,
-        timeLimit: 30,
-        category: "Backend & DevOps",
-      },
-      {
-        id: "devops-2",
-        title: "CI/CD Pipelines",
-        description: "Evaluate your knowledge of continuous integration and deployment practices.",
-        questions: 20,
-        timeLimit: 25,
-        category: "Backend & DevOps",
-      },
-      {
-        id: "devops-3",
-        title: "Cloud Services & Architecture",
-        description: "Test your understanding of cloud platforms and architectural patterns.",
-        questions: 28,
-        timeLimit: 35,
-        category: "Backend & DevOps",
-      },
-    ],
-  },
-]
+export default function AssessmentPage() {
+  const params = useParams()
+  const id = params.id as string
+  const [assessment, setAssessment] = useState<Assessment | null>(null)
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-// Flatten all assessments into a single array
-const allAssessments = categories.flatMap((category) => category.assessments)
+  useEffect(() => {
+    async function fetchAssessment() {
+      try {
+        const response = await fetch(`/api/assessments/${id}`)
 
-export default function AssessmentPage({ params }: { params: { id: string } }) {
-  const assessment = allAssessments.find((a) => a.id === params.id)
+        if (!response.ok) {
+          if (response.status === 404) {
+            notFound()
+          }
+          throw new Error("Failed to fetch assessment")
+        }
+
+        const data = await response.json()
+        setAssessment(data)
+      } catch (error) {
+        console.error("Error fetching assessment:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load assessment. Please try again later.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAssessment()
+  }, [id, toast])
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 w-24 bg-[#522546] rounded"></div>
+            <div className="h-8 w-3/4 bg-[#522546] rounded"></div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-8 w-8 bg-[#522546] rounded-md"></div>
+              <div className="h-4 w-32 bg-[#522546] rounded"></div>
+            </div>
+            <div className="h-4 w-full bg-[#522546] rounded"></div>
+            <div className="h-4 w-5/6 bg-[#522546] rounded"></div>
+            <div className="h-32 w-full bg-[#522546] rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!assessment) {
     notFound()
@@ -154,7 +81,7 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
       case "Backend & DevOps":
         return <Server className="h-5 w-5" />
       default:
-        return null
+        return <Code className="h-5 w-5" />
     }
   }
 
@@ -182,7 +109,7 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
                 </div>
                 <div>
                   <p className="text-sm text-gray-300">Questions</p>
-                  <p className="text-xl font-semibold">{assessment.questions}</p>
+                  <p className="text-xl font-semibold">{assessment.questions.length}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -197,7 +124,7 @@ export default function AssessmentPage({ params }: { params: { id: string } }) {
             </div>
           </Card>
 
-          <AssessmentQuestions assessmentId={assessment.id} />
+          <AssessmentQuestions assessment={assessment} />
         </div>
       </div>
     </div>

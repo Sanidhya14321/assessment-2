@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,41 +24,43 @@ export default function SignInPage() {
     setIsLoading(true)
 
     try {
-      // In a real app, this would authenticate with your backend
-      // For demo purposes, we'll simulate a successful login
-      if (email === "admin@example.com" && password === "admin") {
-        await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
-        toast({
-          title: "Success",
-          description: "You have been signed in.",
-        })
-        router.push("/admin")
-      } else if (email && password) {
-        await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
-        toast({
-          title: "Success",
-          description: "You have been signed in.",
-        })
-        router.push("/profile")
-      } else {
-        toast({
-          title: "Error",
-          description: "Please enter your email and password.",
-          variant: "destructive",
-        })
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        throw new Error("Invalid email or password")
       }
-    } catch (error) {
+
+      toast({
+        title: "Success",
+        description: "You have been signed in.",
+      })
+
+      // Redirect based on user role
+      try {
+        const response = await fetch("/api/auth/me")
+        if (response.ok) {
+          const userData = await response.json()
+          if (userData.role === "admin") {
+            router.push("/admin")
+          } else {
+            router.push("/profile")
+          }
+        } else {
+          // Default redirect if we can't determine role
+          router.push("/profile")
+        }
+      } catch (error) {
+        // Default redirect if API call fails
+        router.push("/profile")
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -115,17 +116,12 @@ export default function SignInPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter className="flex justify-center">
             <div className="text-center text-sm">
               Don&apos;t have an account?{" "}
               <Link href="/auth/signup" className="text-[#F7374F] hover:underline">
                 Sign up
               </Link>
-            </div>
-            <div className="text-xs text-center text-gray-400">
-              <p>For demo purposes:</p>
-              <p>Admin login: admin@example.com / admin</p>
-              <p>User login: any email / any password</p>
             </div>
           </CardFooter>
         </Card>

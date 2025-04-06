@@ -1,9 +1,13 @@
 import { MongoClient } from "mongodb"
 
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/assessment-platform"
-const options = {}
+// Replace the placeholder with the actual password from environment variables
+const uri = process.env.MONGODB_URI || ""
 
-let client
+if (!uri) {
+  throw new Error("Please define the MONGODB_URI environment variable")
+}
+
+let client: MongoClient
 let clientPromise: Promise<MongoClient>
 
 if (process.env.NODE_ENV === "development") {
@@ -14,13 +18,13 @@ if (process.env.NODE_ENV === "development") {
   }
 
   if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options)
+    client = new MongoClient(uri)
     globalWithMongo._mongoClientPromise = client.connect()
   }
   clientPromise = globalWithMongo._mongoClientPromise
 } else {
   // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri, options)
+  client = new MongoClient(uri)
   clientPromise = client.connect()
 }
 

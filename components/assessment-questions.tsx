@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +12,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Clock, AlertTriangle } from "lucide-react"
+import type { Assessment } from "@/lib/models"
+import { useSession } from "next-auth/react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,120 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-// Mock questions - in a real app, these would be fetched from the database
-const mockQuestions = {
-  "aiml-1": [
-    {
-      id: 1,
-      question: "Which of the following is NOT a type of machine learning?",
-      options: ["Supervised Learning", "Unsupervised Learning", "Reinforcement Learning", "Prescriptive Learning"],
-      correctAnswer: 3,
-    },
-    {
-      id: 2,
-      question: "What is the purpose of the activation function in a neural network?",
-      options: [
-        "To initialize the weights",
-        "To introduce non-linearity",
-        "To normalize the input data",
-        "To prevent overfitting",
-      ],
-      correctAnswer: 1,
-    },
-    {
-      id: 3,
-      question: "Which algorithm is commonly used for classification problems?",
-      options: ["K-means", "Linear Regression", "Random Forest", "Principal Component Analysis"],
-      correctAnswer: 2,
-    },
-    {
-      id: 4,
-      question: 'What does the "gradient" refer to in gradient descent?',
-      options: [
-        "The slope of the error function",
-        "The difference between predicted and actual values",
-        "The learning rate of the algorithm",
-        "The activation of neurons",
-      ],
-      correctAnswer: 0,
-    },
-    {
-      id: 5,
-      question: "Which of the following is an unsupervised learning algorithm?",
-      options: ["Decision Trees", "Support Vector Machines", "K-means Clustering", "Logistic Regression"],
-      correctAnswer: 2,
-    },
-  ],
-  "webdev-1": [
-    {
-      id: 1,
-      question: "Which HTML tag is used to create a hyperlink?",
-      options: ["<link>", "<a>", "<href>", "<url>"],
-      correctAnswer: 1,
-    },
-    {
-      id: 2,
-      question: "Which CSS property is used to change the text color?",
-      options: ["text-color", "font-color", "color", "text-style"],
-      correctAnswer: 2,
-    },
-    {
-      id: 3,
-      question: 'What does the "C" stand for in CSS?',
-      options: ["Computing", "Cascading", "Colorful", "Creative"],
-      correctAnswer: 1,
-    },
-    {
-      id: 4,
-      question: "Which JavaScript method is used to add an element at the end of an array?",
-      options: ["push()", "append()", "add()", "insert()"],
-      correctAnswer: 0,
-    },
-    {
-      id: 5,
-      question: "What is the correct way to comment in JavaScript?",
-      options: ["<!-- This is a comment -->", "/* This is a comment */", "// This is a comment", "# This is a comment"],
-      correctAnswer: 2,
-    },
-  ],
-  // Add more questions for other assessments as needed
-}
-
-// Default questions for assessments without specific questions
-const defaultQuestions = [
-  {
-    id: 1,
-    question: "This is a sample question for this assessment.",
-    options: ["Option A", "Option B", "Option C", "Option D"],
-    correctAnswer: 0,
-  },
-  {
-    id: 2,
-    question: "Another sample question for this assessment.",
-    options: ["First choice", "Second choice", "Third choice", "Fourth choice"],
-    correctAnswer: 1,
-  },
-  {
-    id: 3,
-    question: "Sample question number three for this assessment.",
-    options: ["Selection 1", "Selection 2", "Selection 3", "Selection 4"],
-    correctAnswer: 2,
-  },
-  {
-    id: 4,
-    question: "Fourth sample question for this assessment.",
-    options: ["Answer A", "Answer B", "Answer C", "Answer D"],
-    correctAnswer: 3,
-  },
-  {
-    id: 5,
-    question: "Final sample question for this assessment.",
-    options: ["Choice One", "Choice Two", "Choice Three", "Choice Four"],
-    correctAnswer: 0,
-  },
-]
-
-export default function AssessmentQuestions({ assessmentId }: { assessmentId: string }) {
+export default function AssessmentQuestions({ assessment }: { assessment: Assessment }) {
   const [started, setStarted] = useState(false)
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<(number | null)[]>([])
@@ -143,20 +34,19 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
   const [score, setScore] = useState(0)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
   const [showSubmitDialog, setShowSubmitDialog] = useState(false)
+  const [timeSpent, setTimeSpent] = useState(0)
   const { toast } = useToast()
   const router = useRouter()
-
-  // Get questions for this assessment or use default questions
-  const questions = mockQuestions[assessmentId as keyof typeof mockQuestions] || defaultQuestions
+  const { data: session, status } = useSession()
 
   // Initialize answers array
   useEffect(() => {
     if (started) {
-      setAnswers(new Array(questions.length).fill(null))
-      // Set time limit based on assessment (for demo, using 5 minutes)
-      setTimeLeft(5 * 60)
+      setAnswers(new Array(assessment.questions.length).fill(null))
+      // Set time limit based on assessment
+      setTimeLeft(assessment.timeLimit * 60)
     }
-  }, [started, questions.length])
+  }, [started, assessment.questions.length, assessment.timeLimit])
 
   // Timer countdown
   useEffect(() => {
@@ -174,6 +64,8 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
         }
         return prev - 1
       })
+
+      setTimeSpent((prev) => prev + 1)
     }, 1000)
 
     return () => clearInterval(timer)
@@ -186,7 +78,7 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
   }
 
   const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
+    if (currentQuestion < assessment.questions.length - 1) {
       setCurrentQuestion((prev) => prev + 1)
     }
   }
@@ -197,20 +89,50 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Calculate score
     let correctCount = 0
     answers.forEach((answer, index) => {
-      if (answer === questions[index].correctAnswer) {
+      if (answer === assessment.questions[index].correctAnswer) {
         correctCount++
       }
     })
 
-    const percentage = Math.round((correctCount / questions.length) * 100)
+    const percentage = Math.round((correctCount / assessment.questions.length) * 100)
     setScore(percentage)
     setShowResults(true)
 
-    // In a real app, you would save the result to the database here
+    // Save result to database if user is logged in
+    if (status === "authenticated" && session?.user) {
+      try {
+        const response = await fetch("/api/results", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            assessmentId: assessment._id,
+            assessmentTitle: assessment.title,
+            category: assessment.category,
+            score: percentage,
+            answers,
+            timeSpent: timeSpent,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to save result")
+        }
+      } catch (error) {
+        console.error("Error saving result:", error)
+        toast({
+          title: "Warning",
+          description: "Your result could not be saved to your profile.",
+          variant: "destructive",
+        })
+      }
+    }
+
     toast({
       title: "Assessment Completed",
       description: `Your score: ${percentage}%`,
@@ -234,15 +156,15 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
             <div className="text-center">
               <div className="text-6xl font-bold mb-2">{score}%</div>
               <p className="text-gray-300">
-                You answered {answers.filter((a, i) => a === questions[i].correctAnswer).length} out of{" "}
-                {questions.length} questions correctly.
+                You answered {answers.filter((a, i) => a === assessment.questions[i].correctAnswer).length} out of{" "}
+                {assessment.questions.length} questions correctly.
               </p>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-xl font-semibold">Question Summary</h3>
-              {questions.map((q, index) => (
-                <div key={q.id} className="p-4 rounded-lg bg-[#522546]">
+              {assessment.questions.map((q, index) => (
+                <div key={index} className="p-4 rounded-lg bg-[#522546]">
                   <p className="font-medium mb-2">
                     Question {index + 1}: {q.question}
                   </p>
@@ -273,7 +195,11 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
             <Button variant="outline" onClick={() => router.push("/assessments")}>
               Back to Assessments
             </Button>
-            <Button onClick={() => router.push("/profile")}>View All Results</Button>
+            {status === "authenticated" ? (
+              <Button onClick={() => router.push("/profile")}>View All Results</Button>
+            ) : (
+              <Button onClick={() => router.push("/auth/signin")}>Sign in to Save Results</Button>
+            )}
           </CardFooter>
         </Card>
       </motion.div>
@@ -288,17 +214,28 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
             <CardTitle className="text-2xl">Ready to Begin?</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="mb-4">You are about to start an assessment with {questions.length} questions.</p>
+            <p className="mb-4">You are about to start an assessment with {assessment.questions.length} questions.</p>
             <ul className="space-y-2 mb-6">
               <li className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-[#F7374F]" />
-                <span>You will have 5 minutes to complete this assessment.</span>
+                <span>You will have {assessment.timeLimit} minutes to complete this assessment.</span>
               </li>
               <li className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-[#F7374F]" />
                 <span>Once started, the timer cannot be paused.</span>
               </li>
             </ul>
+            {status !== "authenticated" && (
+              <div className="bg-[#88304E]/30 p-4 rounded-lg mb-4">
+                <p className="text-sm">
+                  You are not signed in. Your results will not be saved to a profile.{" "}
+                  <Link href="/auth/signin" className="text-[#F7374F] hover:underline">
+                    Sign in
+                  </Link>{" "}
+                  to track your progress.
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-[#F7374F] hover:bg-[#88304E]" onClick={() => setStarted(true)}>
@@ -316,7 +253,7 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-xl">
-              Question {currentQuestion + 1} of {questions.length}
+              Question {currentQuestion + 1} of {assessment.questions.length}
             </CardTitle>
           </div>
           <div className={`flex items-center gap-2 ${timeLeft <= 60 ? "text-red-500" : "text-white"}`}>
@@ -325,7 +262,7 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Progress value={((currentQuestion + 1) / questions.length) * 100} className="h-2 bg-[#522546]" />
+          <Progress value={((currentQuestion + 1) / assessment.questions.length) * 100} className="h-2 bg-[#522546]" />
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -336,14 +273,14 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
-              <h3 className="text-xl font-medium">{questions[currentQuestion].question}</h3>
+              <h3 className="text-xl font-medium">{assessment.questions[currentQuestion].question}</h3>
 
               <RadioGroup
                 value={answers[currentQuestion]?.toString() || ""}
                 onValueChange={handleAnswer}
                 className="space-y-3"
               >
-                {questions[currentQuestion].options.map((option, index) => (
+                {assessment.questions[currentQuestion].options.map((option, index) => (
                   <div
                     key={index}
                     className="flex items-center space-x-2 rounded-lg border border-[#522546] p-3 hover:bg-[#522546]/30 transition-colors"
@@ -364,7 +301,7 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
           </Button>
 
           <div className="flex gap-2">
-            {currentQuestion === questions.length - 1 ? (
+            {currentQuestion === assessment.questions.length - 1 ? (
               <Button className="bg-[#F7374F] hover:bg-[#88304E]" onClick={() => setShowSubmitDialog(true)}>
                 Submit
               </Button>
@@ -398,7 +335,7 @@ export default function AssessmentQuestions({ assessmentId }: { assessmentId: st
             <AlertDialogTitle>Submit Assessment?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to submit your assessment? You have answered{" "}
-              {answers.filter((a) => a !== null).length} out of {questions.length} questions.
+              {answers.filter((a) => a !== null).length} out of {assessment.questions.length} questions.
               {answers.includes(null) && <p className="text-red-500 mt-2">Warning: You have unanswered questions.</p>}
             </AlertDialogDescription>
           </AlertDialogHeader>

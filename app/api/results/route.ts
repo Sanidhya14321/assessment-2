@@ -1,24 +1,18 @@
-import { NextResponse } from "next/server"
-import clientPromise from "@/lib/mongodb"
+import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
+import { saveResult, getUserResults } from "@/lib/db"
+import { authOptions } from "@/lib/auth-options"
 
-export async function GET() {
+
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const client = await clientPromise
-    const db = client.db()
-
-    const results = await db
-      .collection("results")
-      .find({ userEmail: session.user?.email })
-      .sort({ completedAt: -1 })
-      .toArray()
-
+    const results = await getUserResults(session.user.id)
     return NextResponse.json(results)
   } catch (error) {
     console.error("Error fetching results:", error)
@@ -26,48 +20,34 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
 
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const data = await request.json()
 
     // Validate required fields
-    if (!data.assessmentId || !data.score || !data.answers) {
+    if (!data.assessmentId || data.score === undefined || !data.answers) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const client = await clientPromise
-    const db = client.db()
-
-    // Get assessment details
-    const assessment = await db.collection("assessments").findOne({
-      _id: data.assessmentId,
-    })
-
-    if (!assessment) {
-      return NextResponse.json({ error: "Assessment not found" }, { status: 404 })
-    }
-
-    const result = {
-      userEmail: session.user?.email,
-      userName: session.user?.name,
+    const result = await saveResult({
+      userId: session.user.id,
+      userEmail: session.user.email || "",
+      userName: session.user.name || "",
       assessmentId: data.assessmentId,
-      assessmentTitle: assessment.title,
-      category: assessment.category,
+      assessmentTitle: data.assessmentTitle,
+      category: data.category,
       score: data.score,
       answers: data.answers,
       timeSpent: data.timeSpent || 0,
-      completedAt: new Date(),
-    }
+    })
 
-    await db.collection("results").insertOne(result)
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Error saving result:", error)
     return NextResponse.json({ error: "Failed to save result" }, { status: 500 })

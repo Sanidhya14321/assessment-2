@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import  useToast  from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -26,88 +26,15 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react"
-
-// Mock data - in a real app, this would be fetched from the database
-const mockStats = {
-  users: {
-    total: 1245,
-    newThisWeek: 87,
-    activeToday: 342,
-  },
-  assessments: {
-    total: 48,
-    categories: {
-      "AI & Machine Learning": 12,
-      "Web Development": 15,
-      "Database Systems": 10,
-      "Backend & DevOps": 11,
-    },
-    mostPopular: "Frontend Fundamentals",
-    averageScore: 76,
-  },
-  recentAssessments: [
-    {
-      id: 1,
-      title: "Machine Learning Fundamentals",
-      category: "AI & Machine Learning",
-      questions: 25,
-      createdAt: "2023-11-01",
-      expiresAt: "2023-11-21",
-      upvotes: 124,
-      downvotes: 12,
-    },
-    {
-      id: 2,
-      title: "Frontend Fundamentals",
-      category: "Web Development",
-      questions: 30,
-      createdAt: "2023-11-05",
-      expiresAt: "2023-11-25",
-      upvotes: 156,
-      downvotes: 14,
-    },
-    {
-      id: 3,
-      title: "SQL Fundamentals",
-      category: "Database Systems",
-      questions: 25,
-      createdAt: "2023-11-08",
-      expiresAt: "2023-11-28",
-      upvotes: 112,
-      downvotes: 8,
-    },
-    {
-      id: 4,
-      title: "Docker & Containerization",
-      category: "Backend & DevOps",
-      questions: 25,
-      createdAt: "2023-11-10",
-      expiresAt: "2023-11-30",
-      upvotes: 105,
-      downvotes: 7,
-    },
-  ],
-}
-
-function getCategoryIcon(category: string) {
-  switch (category) {
-    case "AI & Machine Learning":
-      return <Brain className="h-5 w-5" />
-    case "Web Development":
-      return <Code className="h-5 w-5" />
-    case "Database Systems":
-      return <Database className="h-5 w-5" />
-    case "Backend & DevOps":
-      return <Server className="h-5 w-5" />
-    default:
-      return null
-  }
-}
+import type { Assessment } from "@/lib/models"
 
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { toast } = useToast()
+  const [stats, setStats] = useState<any>(null)
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [loading, setLoading] = useState(true)
   const [newAssessment, setNewAssessment] = useState({
     title: "",
     category: "",
@@ -123,7 +50,7 @@ export default function AdminPage() {
 
   // Check if user is admin
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.email !== "admin@example.com") {
+    if (status === "authenticated" && session?.user?.role !== "admin") {
       toast({
         title: "Access Denied",
         description: "You don't have permission to access the admin page.",
@@ -131,10 +58,66 @@ export default function AdminPage() {
       })
       router.push("/")
     }
+
+    if (status === "authenticated" && session?.user?.role === "admin") {
+      fetchAdminData()
+    }
   }, [session, status, router, toast])
 
-  // If loading or not authenticated, show nothing
-  if (status === "loading" || (status === "authenticated" && session?.user?.email !== "admin@example.com")) {
+  const fetchAdminData = async () => {
+    try {
+      // Fetch admin stats
+      const statsResponse = await fetch("/api/admin/stats")
+
+      if (!statsResponse.ok) {
+        throw new Error("Failed to fetch admin stats")
+      }
+
+      const statsData = await statsResponse.json()
+      setStats(statsData)
+
+      // Fetch assessments
+      const assessmentsResponse = await fetch("/api/assessments")
+
+      if (!assessmentsResponse.ok) {
+        throw new Error("Failed to fetch assessments")
+      }
+
+      const assessmentsData = await assessmentsResponse.json()
+      setAssessments(assessmentsData)
+
+      setLoading(false)
+    } catch (error) {
+      console.error("Error fetching admin data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load admin data. Please try again later.",
+        variant: "destructive",
+      })
+      setLoading(false)
+    }
+  }
+
+  // If loading or not authenticated, show loading state
+  if (status === "loading" || loading) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="h-24 bg-[#522546] rounded-lg"></div>
+            <div className="h-24 bg-[#522546] rounded-lg"></div>
+            <div className="h-24 bg-[#522546] rounded-lg"></div>
+          </div>
+          <div className="h-64 bg-[#522546] rounded-lg"></div>
+          <div className="h-96 bg-[#522546] rounded-lg"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // If not admin, show nothing
+  if (status === "authenticated" && session?.user?.role !== "admin") {
     return null
   }
 
@@ -165,7 +148,7 @@ export default function AdminPage() {
     })
   }
 
-  const handleCreateAssessment = () => {
+  const handleCreateAssessment = async () => {
     if (
       !newAssessment.title ||
       !newAssessment.category ||
@@ -180,28 +163,72 @@ export default function AdminPage() {
       return
     }
 
-    // In a real app, you would save the assessment to the database here
-    toast({
-      title: "Assessment Created",
-      description: "The assessment has been created successfully.",
-    })
+    try {
+      const response = await fetch("/api/assessments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newAssessment),
+      })
 
-    // Reset form
-    setNewAssessment({
-      title: "",
-      category: "",
-      description: "",
-      timeLimit: 30,
-      questions: [],
-    })
+      if (!response.ok) {
+        throw new Error("Failed to create assessment")
+      }
+
+      const createdAssessment = await response.json()
+
+      // Add the new assessment to the list
+      setAssessments((prev) => [createdAssessment, ...prev])
+
+      toast({
+        title: "Assessment Created",
+        description: "The assessment has been created successfully.",
+      })
+
+      // Reset form
+      setNewAssessment({
+        title: "",
+        category: "",
+        description: "",
+        timeLimit: 30,
+        questions: [],
+      })
+    } catch (error) {
+      console.error("Error creating assessment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create assessment. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDeleteAssessment = (id: number) => {
-    // In a real app, you would delete the assessment from the database here
-    toast({
-      title: "Assessment Deleted",
-      description: "The assessment has been deleted successfully.",
-    })
+  const handleDeleteAssessment = async (id: string) => {
+    try {
+      const response = await fetch(`/api/assessments/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete assessment")
+      }
+
+      // Remove the assessment from the list
+      setAssessments((prev) => prev.filter((assessment) => assessment._id !== id))
+
+      toast({
+        title: "Assessment Deleted",
+        description: "The assessment has been deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting assessment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete assessment. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -218,11 +245,11 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-[#F7374F]" />
-                  <span className="text-2xl font-bold">{mockStats.users.total}</span>
+                  <span className="text-2xl font-bold">{stats?.users?.total || 0}</span>
                 </div>
                 <div>
                   <div className="text-xs text-gray-400">New this week</div>
-                  <div className="text-sm font-medium">+{mockStats.users.newThisWeek}</div>
+                  <div className="text-sm font-medium">+{stats?.users?.newThisWeek || 0}</div>
                 </div>
               </div>
             </CardContent>
@@ -242,11 +269,13 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-[#F7374F]" />
-                  <span className="text-2xl font-bold">{mockStats.assessments.total}</span>
+                  <span className="text-2xl font-bold">{stats?.assessments?.total || 0}</span>
                 </div>
                 <div>
                   <div className="text-xs text-gray-400">Most popular</div>
-                  <div className="text-sm font-medium truncate max-w-[120px]">{mockStats.assessments.mostPopular}</div>
+                  <div className="text-sm font-medium truncate max-w-[120px]">
+                    {stats?.assessments?.mostPopular || "N/A"}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -266,11 +295,11 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-[#F7374F]" />
-                  <span className="text-2xl font-bold">{mockStats.assessments.averageScore}%</span>
+                  <span className="text-2xl font-bold">{stats?.assessments?.averageScore || 0}%</span>
                 </div>
                 <div>
                   <div className="text-xs text-gray-400">Active users today</div>
-                  <div className="text-sm font-medium">{mockStats.users.activeToday}</div>
+                  <div className="text-sm font-medium">{stats?.users?.activeToday || 0}</div>
                 </div>
               </div>
             </CardContent>
@@ -286,23 +315,42 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(mockStats.assessments.categories).map(([category, count]) => (
-                <div key={category} className="flex items-center gap-3">
-                  <div className="bg-[#522546] p-2 rounded-md">{getCategoryIcon(category)}</div>
-                  <div className="flex-grow">
-                    <div className="flex justify-between mb-1">
-                      <span>{category}</span>
-                      <span>{count}</span>
+              {stats?.assessments?.categories &&
+                Object.entries(stats.assessments.categories).map(([category, count]: [string, any]) => (
+                  <div key={category} className="flex items-center gap-3">
+                    <div className="bg-[#522546] p-2 rounded-md">
+                      {category === "AI & Machine Learning" ? (
+                        <Brain className="h-6 w-6" />
+                      ) : category === "Web Development" ? (
+                        <Code className="h-6 w-6" />
+                      ) : category === "Database Systems" ? (
+                        <Database className="h-6 w-6" />
+                      ) : category === "Backend & DevOps" ? (
+                        <Server className="h-6 w-6" />
+                      ) : (
+                        <BookOpen className="h-6 w-6" />
+                      )}
                     </div>
-                    <div className="h-2 bg-[#522546] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#F7374F]"
-                        style={{ width: `${(count / mockStats.assessments.total) * 100}%` }}
-                      ></div>
+                    <div className="flex-grow">
+                      <div className="flex justify-between mb-1">
+                        <span>{category}</span>
+                        <span>{count}</span>
+                      </div>
+                      <div className="h-2 bg-[#522546] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#F7374F]"
+                          style={{ width: `${(count / stats.assessments.total) * 100}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
+                ))}
+
+              {(!stats?.assessments?.categories || Object.keys(stats.assessments.categories).length === 0) && (
+                <div className="text-center py-4">
+                  <p className="text-gray-400">No assessment categories available.</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -341,53 +389,71 @@ export default function AdminPage() {
               <CardDescription>Manage existing assessments</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockStats.recentAssessments.map((assessment) => (
-                  <div key={assessment.id} className="p-4 bg-[#522546] rounded-lg">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                      <div className="flex items-center gap-3 mb-2 md:mb-0">
-                        <div className="bg-[#88304E] p-2 rounded-full">{getCategoryIcon(assessment.category)}</div>
-                        <div>
-                          <h3 className="font-semibold">{assessment.title}</h3>
-                          <p className="text-sm text-gray-400">{assessment.category}</p>
+              {assessments.length > 0 ? (
+                <div className="space-y-4">
+                  {assessments.map((assessment) => (
+                    <div key={assessment._id} className="p-4 bg-[#522546] rounded-lg">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
+                        <div className="flex items-center gap-3 mb-2 md:mb-0">
+                          <div className="bg-[#88304E] p-2 rounded-full">
+                            {assessment.category === "AI & Machine Learning" ? (
+                              <Brain className="h-6 w-6" />
+                            ) : assessment.category === "Web Development" ? (
+                              <Code className="h-6 w-6" />
+                            ) : assessment.category === "Database Systems" ? (
+                              <Database className="h-6 w-6" />
+                            ) : assessment.category === "Backend & DevOps" ? (
+                              <Server className="h-6 w-6" />
+                            ) : (
+                              <BookOpen className="h-6 w-6" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{assessment.title}</h3>
+                            <p className="text-sm text-gray-400">{assessment.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-400">
+                              Expires: {new Date(assessment.expiresAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            onClick={() => handleDeleteAssessment(assessment._id as string)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-400">
-                            Expires: {new Date(assessment.expiresAt).toLocaleDateString()}
-                          </span>
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1">
+                            <BookOpen className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">{assessment.questions.length} Questions</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <ThumbsUp className="h-4 w-4 text-green-500" />
+                            <span className="text-sm">{assessment.upvotes}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <ThumbsDown className="h-4 w-4 text-red-500" />
+                            <span className="text-sm">{assessment.downvotes}</span>
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                          onClick={() => handleDeleteAssessment(assessment.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <BookOpen className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm">{assessment.questions} Questions</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <ThumbsUp className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{assessment.upvotes}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <ThumbsDown className="h-4 w-4 text-red-500" />
-                          <span className="text-sm">{assessment.downvotes}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No assessments available. Create your first assessment.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

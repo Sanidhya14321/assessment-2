@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,8 +37,24 @@ export default function SignUpPage() {
     }
 
     try {
-      // In a real app, this would register with your backend
-      // For demo purposes, we'll simulate a successful registration
+      // Register the user
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to create account")
+      }
+
       toast({
         title: "Success",
         description: "Your account has been created.",
@@ -53,10 +68,10 @@ export default function SignUpPage() {
       })
 
       router.push("/profile")
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
