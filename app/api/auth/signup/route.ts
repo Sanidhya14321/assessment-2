@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createUser } from "@/lib/db"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const data = await request.json()
 

@@ -1,10 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { getAdminStats } from "@/lib/db"
 import { authOptions } from "@/lib/auth-options"
 
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 

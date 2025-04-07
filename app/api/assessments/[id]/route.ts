@@ -1,10 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
 import { getAssessmentById, deleteAssessment, voteAssessment } from "@/lib/db"
 import { authOptions } from "@/lib/auth-options"
 
-
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const id = params.id
     const assessment = await getAssessmentById(id)
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -43,7 +42,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     const id = params.id
     const { action } = await request.json()

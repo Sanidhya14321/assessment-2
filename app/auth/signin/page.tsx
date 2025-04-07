@@ -39,24 +39,8 @@ export default function SignInPage() {
         description: "You have been signed in.",
       })
 
-      // Redirect based on user role
-      try {
-        const response = await fetch("/api/auth/me")
-        if (response.ok) {
-          const userData = await response.json()
-          if (userData.role === "admin") {
-            router.push("/admin")
-          } else {
-            router.push("/profile")
-          }
-        } else {
-          // Default redirect if we can't determine role
-          router.push("/profile")
-        }
-      } catch (error) {
-        // Default redirect if API call fails
-        router.push("/profile")
-      }
+      // Redirect to profile page
+      router.push("/profile")
     } catch (error: any) {
       toast({
         title: "Error",
